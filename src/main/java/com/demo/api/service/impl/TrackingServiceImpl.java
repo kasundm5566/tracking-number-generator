@@ -1,5 +1,6 @@
 package com.demo.api.service.impl;
 
+import com.demo.api.exception.ValidationException;
 import com.demo.api.model.TrackingNumberResponse;
 import com.demo.api.model.TrackingRecord;
 import com.demo.api.model.dto.TrackingRecordDTO;
@@ -7,6 +8,8 @@ import com.demo.api.repository.TrackingRecordRepository;
 import com.demo.api.service.TrackingService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -14,9 +17,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class TrackingServiceImpl implements TrackingService {
 
     private final TrackingRecordRepository repository;
+    private final Validator validator;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -33,6 +39,16 @@ public class TrackingServiceImpl implements TrackingService {
     @Override
     @Async("taskExecutor")
     public CompletableFuture<TrackingNumberResponse> generateNextTrackingNumber(TrackingRecordDTO trackingRecordDTO) {
+
+        Set<ConstraintViolation<TrackingRecordDTO>> violations = validator.validate(trackingRecordDTO);
+        if (!violations.isEmpty()) {
+            String errorMessages = violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect(Collectors.joining(", "));
+            throw new ValidationException(errorMessages);
+        }
+
+
         String trackingNumber = generateRandomTrackingNumber(trackingRecordDTO.getOriginCountryId(), trackingRecordDTO.getDestinationCountryId());
         String databaseUpdatedTime = updateDatabaseWithTrackingNumber(trackingNumber, trackingRecordDTO);
         TrackingNumberResponse trackingNumberResponse = TrackingNumberResponse.builder()
@@ -73,7 +89,7 @@ public class TrackingServiceImpl implements TrackingService {
     }
 
     private String updateDatabaseWithTrackingNumber(String trackingNumber, TrackingRecordDTO trackingRecordDTO) {
-        log.info("Updating database with tracking number: {}", trackingNumber);
+        log.info("Updating database.");
 
         OffsetDateTime generatedAt = OffsetDateTime.parse(OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")));
 
@@ -90,7 +106,7 @@ public class TrackingServiceImpl implements TrackingService {
 
         repository.save(trackingRecord);
 
-        log.info("Updated the database");
+        log.info("Updated the database.");
 
         return generatedAt.toString();
     }
