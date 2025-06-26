@@ -36,16 +36,16 @@ public class TrackingRecordDTO {
     private String destinationCountryId;
 
     @NotNull(message = "weight is required")
-    @Digits(integer = 10, fraction = 3)
+    @Digits(integer = 3, fraction = 3)
     @DecimalMin(value = "0.001", message = "weight must be greater than 0")
     private BigDecimal weight;
 
-    @NotNull(message = "customer id is required")
+    @NotBlank(message = "customer id is required")
     private String customerId;
 
-    @NotNull(message = "customer name is required")
+    @NotBlank(message = "customer name is required")
     private String customerName;
 
-    @NotNull(message = "customer slug is required")
+    @NotBlank(message = "customer slug is required")
     private String customerSlug;
 }
