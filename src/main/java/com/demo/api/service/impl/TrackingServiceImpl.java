@@ -1,5 +1,6 @@
 package com.demo.api.service.impl;
 
+import com.demo.api.exception.TrackingNumberGenerationException;
 import com.demo.api.exception.ValidationException;
 import com.demo.api.model.TrackingNumberResponse;
 import com.demo.api.model.TrackingRecord;
@@ -45,17 +46,23 @@ public class TrackingServiceImpl implements TrackingService {
             String errorMessages = violations.stream()
                     .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                     .collect(Collectors.joining(", "));
+            log.error("Validation errors when generating tracking number: {}", errorMessages);
             throw new ValidationException(errorMessages);
         }
 
+        try {
+            String trackingNumber = generateRandomTrackingNumber(trackingRecordDTO.getOriginCountryId(), trackingRecordDTO.getDestinationCountryId());
+            String databaseUpdatedTime = updateDatabaseWithTrackingNumber(trackingNumber, trackingRecordDTO);
+            TrackingNumberResponse trackingNumberResponse = TrackingNumberResponse.builder()
+                    .trackingNumber(trackingNumber)
+                    .createdAt(databaseUpdatedTime)
+                    .build();
+            return CompletableFuture.completedFuture(trackingNumberResponse);
+        } catch (Exception ex) {
+            log.error("Error when generating a tracking number", ex);
+            throw new TrackingNumberGenerationException("Error generating tracking number: " + ex.getMessage());
+        }
 
-        String trackingNumber = generateRandomTrackingNumber(trackingRecordDTO.getOriginCountryId(), trackingRecordDTO.getDestinationCountryId());
-        String databaseUpdatedTime = updateDatabaseWithTrackingNumber(trackingNumber, trackingRecordDTO);
-        TrackingNumberResponse trackingNumberResponse = TrackingNumberResponse.builder()
-                .trackingNumber(trackingNumber)
-                .createdAt(databaseUpdatedTime)
-                .build();
-        return CompletableFuture.completedFuture(trackingNumberResponse);
     }
 
     private String generateRandomTrackingNumber(String origin, String destination) {
