@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,7 +20,7 @@ public class TrackingController {
     private final TrackingService trackingService;
 
     @GetMapping("/next-tracking-number")
-    public TrackingNumberResponse generateNextTrackingNumber(
+    public CompletableFuture<TrackingNumberResponse> generateNextTrackingNumber(
             @RequestParam(name = "origin_country_id") String originCountryId,
             @RequestParam(name = "destination_country_id") String destinationCountryId,
             @RequestParam double weight,
@@ -41,10 +42,6 @@ public class TrackingController {
                 .customerSlug(customerSlug)
                 .build();
 
-        TrackingNumberResponse trackingNumberResponse = trackingService.generateNextTrackingNumber(trackingRecordDTO);
-
-        log.info("Tracking number generating response: {}", trackingNumberResponse);
-
-        return trackingNumberResponse;
+        return trackingService.generateNextTrackingNumber(trackingRecordDTO);
     }
 }
